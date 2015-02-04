@@ -78,11 +78,11 @@ class BingGeocoder:
                     continue
                 elif min_cutoff != 0:
                     # We care about when the job was completed
-                    if 'completedDate' in resource:
-                        completed = datetime.strptime(
-                            resource['completedDate'],
+                    if 'createdDate' in resource:
+                        created = datetime.strptime(
+                            resource['createdDate'],
                             '%a, %d %b %Y %H:%M:%S %Z')
-                        if completed.replace(tzinfo=pytz.UTC) > now - delta:
+                        if created.replace(tzinfo=pytz.UTC) > now - delta:
                             # Job was completed after min_cutoff minutes ago
                             results.append(resource)
                 else:
