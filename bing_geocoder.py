@@ -160,6 +160,8 @@ def pretty_print_statuses(statuses):
     for status in statuses:
         print """
         Job ID: %s
+        Created: %s
+        Completed: %s
         Current status: %s
         Total entities: %s
         Processed entities: %s
@@ -167,6 +169,8 @@ def pretty_print_statuses(statuses):
         -----------------------
         """ % (
             status['id'],
+            status['createdDate'],
+            status.get('completedDate', '--'),
             status['status'],
             status['totalEntityCount'],
             status['processedEntityCount'],
