@@ -133,7 +133,8 @@ def send_email_notification(results, settings, finished=False):
 
         We'll email you when it's done, but the results will be available at %s
         """
-    sg = sendgrid.SendGridClient('', '')
+    sg = sendgrid.SendGridClient(
+        os.environ.get('SENDGRID_USERNAME', ''), os.environ.get('SENDGRID_PASSWORD', ''))
     message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com')
     message.add_to('aepton@tribpub.com')
     message.set_html(template)
