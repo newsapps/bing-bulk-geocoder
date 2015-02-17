@@ -18,18 +18,18 @@ class BingGeocoder:
     """
 
     def __init__(self, key):
-        self.key = key
+        if key:
+            self.key = key
+        else:
+            self.key = os.env.get('BING_MAPS_API_KEY', None)
 
-    def upload_addresses(self, addresses):
+    def batch_addresses(self, addresses):
         """
-        Given list of dicts of {'address', 'entity_id'}, send them to Bing for processing. If
-        successful, returns string corresponding to job ID of uploaded batch.
+        Given list of dicts {'address', 'entity_id'}, return a batch file containing their data.
         """
         if not addresses or not len(addresses):
             LOGGER.error('Unable to upload blank list of addresses to geocode')
             return
-        url = ('http://spatial.virtualearth.net/REST/v1/Dataflows/Geocode?input=csv&key=%s' %
-               self.key)
         header_preamble = 'Bing Spatial Data Services, 2.0'
         header_fields = [
             'Id',
@@ -46,8 +46,19 @@ class BingGeocoder:
             body.append(line_format % (address['entity_id'], address['address'].replace('"', '\"')))
         data = "%s\n%s" % (header, '\n'.join(body))
         LOGGER.debug('Uploading %d addresses for geocoding' % len(body))
+        return data
+
+    def upload_address_batch(self, batch, prefix_preamble=True):
+        """
+        Given a string for a batch, send it to Bing for processing. If successful, returns string
+        corresponding to job ID of uploaded batch.
+        """
+        url = ('http://spatial.virtualearth.net/REST/v1/Dataflows/Geocode?input=csv&key=%s' %
+               self.key)
+        if prefix_preamble:
+            batch = 'Bing Spatial Data Services, 2.0\n%s' % batch
         try:
-            r = requests.post(url, data=data, headers={"Content-Type": "text/plain"})
+            r = requests.post(url, data=batch, headers={"Content-Type": "text/plain"})
             for rs in r.json()['resourceSets']:
                 for resource in rs['resources']:
                     if 'id' in resource:
@@ -87,6 +98,9 @@ class BingGeocoder:
                             results.append(resource)
                 else:
                     results.append(resource)
+        if job_id:
+            # We were asked for specific job status, and since we're still here, we couldn't find it
+            return []
         return results
 
     def get_job_results(self, job_id):
@@ -106,9 +120,11 @@ class BingGeocoder:
                         if len(r.text.splitlines()) > 2:
                             result_data = StringIO.StringIO()
                             # Bing results data comes back with space+comma separator in header
-                            result_data.write('%s\n' % r.text.splitlines()[1].replace(', ', ','))
+                            result_data.write(
+                                '%s\n' % r.text.splitlines()[1].replace(', ', ',').encode(
+                                    'utf-8', errors='replace'))
                             for line in r.text.splitlines()[2:]:
-                                result_data.write('%s\n' % line)
+                                result_data.write('%s\n' % line.encode('utf-8', errors='replace'))
                             result_data.flush()
                             result_data.seek(0)
                             # Iterating twice over file in order to rely on csv DictReader parsing
@@ -201,7 +217,8 @@ def main():
         if not path:
             print 'Need to provide a path to a file.'
             return
-        job_id = geocoder.upload_addresses(get_addresses_from_file(path))
+        batch = geocoder.batch_addresses(get_addresses_from_file(path))
+        job_id = geocoder.upload_address_batch(batch)
         if job_id:
             print 'Successful upload. Job id is %s' % job_id
 
