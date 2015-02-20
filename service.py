@@ -53,19 +53,22 @@ def download_jobs(geocoder):
     bucket = connection.get_bucket(GEO_BUCKET)
     files = bucket.list('%s' % awaiting_folder)
     for f in files:
-        name = f.name.replace('%s/' % awaiting_folder, '')
-        if name:
-            logging.info('Uploading %s to Bing' % name)
-            job_id = geocoder.upload_address_batch(f.get_contents_as_string())
-            if job_id:
-                logging.info('Moving batch with old id %s to new id %s in %s' % (
-                    name, job_id, pending_folder))
-                new_key = Key(bucket)
-                new_key.key = '%s/%s' % (pending_folder, job_id)
-                new_key.set_contents_from_string(name)
-                old_key = Key(bucket)
-                old_key.key = '%s/%s' % (awaiting_folder, name)
-                old_key.delete()
+        try:
+            name = f.name.replace('%s/' % awaiting_folder, '')
+            if name:
+                logging.info('Uploading %s to Bing' % name)
+                job_id = geocoder.upload_address_batch(f.get_contents_as_string())
+                if job_id:
+                    logging.info('Moving batch with old id %s to new id %s in %s' % (
+                        name, job_id, pending_folder))
+                    new_key = Key(bucket)
+                    new_key.key = '%s/%s' % (pending_folder, job_id)
+                    new_key.set_contents_from_string(name)
+                    old_key = Key(bucket)
+                    old_key.key = '%s/%s' % (awaiting_folder, name)
+                    old_key.delete()
+        except Exception:
+            continue
 
 
 def check_pending_jobs(geocoder):
