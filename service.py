@@ -67,8 +67,8 @@ def download_jobs(geocoder):
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
-        except Exception:
-            continue
+        except Exception, e:
+            logging.warning('Error uploading %s to Bing: %s' % (name, e))
 
 
 def check_pending_jobs(geocoder):
