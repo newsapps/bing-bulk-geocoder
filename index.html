@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Tribune Geocoder</title>
+
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+        <link href="/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="site-wrapper">
+            <div class="site-wrapper-inner">
+                <div class="cover-container">
+                    <div class="masthead clearfix">
+                        <div class="inner">
+                            <h3 class="masthead-brand">Tribune Geocoder</h3>
+                        </div>
+                    </div>
+                    <div class="inner cover">
+                        <h1 class="cover-heading">Upload a file containing addresses to geocode</h1>
+                        <input type="file" id="file-chooser" class="lead btn btn-default" />
+                        <br><br>
+                        <button id="upload-button" class="lead btn btn-default">Upload</button>
+                        <br><br>
+                        <div id="results" class="lead"></div>
+                    </div>
+                    <div class="mastfoot">
+                        <div class="inner">
+                            <p>Chicago Tribune News Applications, 2015</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bootstrap core JavaScript
+        ================================================== -->
+        <!-- Placed at the end of the document so the pages load faster -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.2/js/bootstrap.min.js"></script>
+        <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.10.min.js"></script>
+        <script type="text/javascript">
+            var aki = 'AKIAIERQJNPEPAHCXHSA',
+                sak = 'mR1gZdH+Iq4PTDr4gmUGArja6fgD3lNDIb5s05Vd';
+            AWS.config.update({accessKeyId: aki, secretAccessKey: sak});
+            AWS.config.region = 'us-east-1';
+
+            // Shamelessly stolen from AWS JS SDK docs
+            var bucket = new AWS.S3({params: {Bucket: 'geo.tribapps.com'}});
+            var fileChooser = document.getElementById('file-chooser');
+            var button = document.getElementById('upload-button');
+            var results = document.getElementById('results');
+            button.addEventListener('click', function() {
+                var file = fileChooser.files[0];
+                if (file) {
+                    results.innerHTML = '';
+
+                    var params = {
+                        Key: 'geocode_awaiting_submission/' + file.name,
+                        ContentType: file.type,
+                        Body: file
+                    };
+                    var success = 'File successfully uploaded.<br><br>Results, when ready, will be available <a href="/geocode_finished_jobs/' + file.name + '">here</a>.<br><br>We\'ll send you an email when they\'re done; expect to wait at least 15 minutes for smaller jobs, a bit longer for much larger ones.';
+                    bucket.upload(params, function (err, data) {
+                        results.innerHTML = err ? 'Error uploading file.' : success;
+                    });
+                } else {
+                    results.innerHTML = 'Nothing to upload.';
+                }
+            }, false);
+        </script>
+    </body>
+</html>
