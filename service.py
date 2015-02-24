@@ -57,6 +57,7 @@ def download_jobs(geocoder):
             name = f.name.replace('%s/' % awaiting_folder, '')
             if name:
                 logging.info('Uploading %s to Bing' % name)
+                logging.info('Metadata: %s' % f.metadata)
                 job_id = geocoder.upload_address_batch(f.get_contents_as_string())
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
@@ -64,6 +65,10 @@ def download_jobs(geocoder):
                     new_key = Key(bucket)
                     new_key.key = '%s/%s' % (pending_folder, job_id)
                     new_key.set_contents_from_string(name)
+                    for md in f.metadata.keys():
+                        new_key.set_metadata(md, f.metadata[md])
+                    if 'x-amz-metadata-email' in f.metadata:
+                        send_email_notification(f.metadata['x-amz-metadata-email'], {}, new_name)
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
@@ -99,25 +104,36 @@ def save_job_results(geocoder, job_id):
     logging.info('Saving results for %s to S3' % job_id)
     finished_folder = 'geocode_finished_jobs'
     pending_folder = 'geocode_pending_jobs'
+
     connection = boto.connect_s3()
     bucket = connection.get_bucket(GEO_BUCKET)
+
     old_key = Key(bucket)
     old_key.key = '%s/%s' % (pending_folder, job_id)
+
     new_name = old_key.get_contents_as_string()
     new_key = Key(bucket)
     new_key.key = '%s/%s' % (finished_folder, new_name)
+    for md in old_key.metadata.keys():
+        new_key.set_metadata(md, old_key.metadata[md])
+
     results = geocoder.get_job_results(job_id)
     result_string = StringIO.StringIO()
     writer = DictWriter(result_string, fieldnames=results[0].keys())
     writer.writeheader()
     writer.writerows(results)
     result_string.seek(0)
+
+    if 'x-amz-metadata-email' in old_key.metadata:
+        send_email_notification(
+            old_key.metadata['x-amz-metadata-email'], results, new_name, finished=True)
+
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
     old_key.delete()
 
 
-def send_email_notification(results, settings, finished=False):
+def send_email_notification(address, results, settings, finished=False):
     """
     Send an email notification when a job has been created or is finished.
     """
@@ -138,8 +154,7 @@ def send_email_notification(results, settings, finished=False):
         """
     sg = sendgrid.SendGridClient(
         os.environ.get('SENDGRID_USERNAME', ''), os.environ.get('SENDGRID_PASSWORD', ''))
-    message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com')
-    message.add_to('aepton@tribpub.com')
+    message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com', to_email=address)
     message.set_html(template)
     message.set_text(template)
     logging.info('Sending email report to %s' % ', '.join(message.to))
