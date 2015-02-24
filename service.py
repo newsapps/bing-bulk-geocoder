@@ -124,7 +124,7 @@ def save_job_results(geocoder, job_id):
     email_address = old_key.get_metadata('email')
     if email_address:
         new_key.set_metadata('email', email_address)
-        send_email_notification(email_address, results, new_name, 'finished')
+        send_email_notification(email_address, results[0], new_name, 'finished')
 
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
