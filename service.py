@@ -56,6 +56,7 @@ def download_jobs(geocoder):
         try:
             name = f.name.replace('%s/' % awaiting_folder, '')
             fkey = bucket.get_key(f.name)
+            email_address = fkey.get_metadata('email')
             if name:
                 logging.info('Uploading %s to Bing' % name)
                 job_id = geocoder.upload_address_batch(fkey.get_contents_as_string())
@@ -64,14 +65,15 @@ def download_jobs(geocoder):
                         name, job_id, pending_folder))
                     new_key = bucket.get_key('%s/%s' % (pending_folder, job_id))
                     new_key.set_contents_from_string(name)
-                    email_address = fkey.get_metadata('email')
                     if email_address:
                         logging.info('Setting metadata to %s' % email_address)
                         new_key.set_metadata('email', email_address)
-                        send_email_notification(email_address, {}, name)
+                        send_email_notification(email_address, {}, name, 'pending')
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
+                else:
+                    send_email_notification(email_address, {}, name, 'error')
         except Exception, e:
             logging.warning('Error uploading %s to Bing: %s' % (name, e))
 
@@ -121,32 +123,39 @@ def save_job_results(geocoder, job_id):
     email_address = old_key.get_metadata('email')
     if email_address:
         new_key.set_metadata('email', email_address)
-        send_email_notification(email_address, results, new_name, finished=True)
+        send_email_notification(email_address, results, new_name, 'finished')
 
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
     old_key.delete()
 
 
-def send_email_notification(address, results, settings, finished=False):
+def send_email_notification(address, results, settings, status):
     """
     Send an email notification when a job has been created or is finished.
     """
     finished_url = 'http://geo.tribapps.com/geocode_finished_jobs/%s' % settings
-    if finished:
+    if status == 'finished':
         subject = 'Finished geocoding job %s' % settings
         template = """
         Finished geocoding. Download results at {0}<br><br>
 
         Had trouble processing {1:,d} addresses out of {2:,d} submitted.
         """.format(finished_url, results['failedEntityCount'], results['processedEntityCount'])
-    else:
+    elif status == 'pending':
         subject = 'Began processing geocode job %s' % settings
         template = """
         Just submitted job for geocoding.<br><br>
 
         We'll email you when it's done, but the results will be available at %s
         """ % finished_url
+    elif status == 'error':
+        subject = 'Error processing geocode job %s' % settings
+        template = """
+        It looks like Bing had trouble processing the file you uploaded.<br><br>
+
+        Was it a CSV with column headings as described at http://geo.tribapps.com?
+        """
     sg = sendgrid.SendGridClient(
         os.environ.get('SENDGRID_USERNAME', ''), os.environ.get('SENDGRID_PASSWORD', ''))
     message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com')
