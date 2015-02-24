@@ -57,7 +57,7 @@ def download_jobs(geocoder):
             name = f.name.replace('%s/' % awaiting_folder, '')
             if name:
                 logging.info('Uploading %s to Bing' % name)
-                logging.info('Metadata: %s' % f.get_metadata('x-amz-meta-email'))
+                logging.info('Metadata: %s' % f.get_metadata('email'))
                 job_id = geocoder.upload_address_batch(f.get_contents_as_string())
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
