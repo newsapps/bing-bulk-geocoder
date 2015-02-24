@@ -108,7 +108,7 @@ def save_job_results(geocoder, job_id):
 
     connection = boto.connect_s3()
     bucket = connection.get_bucket(GEO_BUCKET)
-    old_key = bucket.get_key((pending_folder, job_id))
+    old_key = bucket.get_key('%s/%s' % (pending_folder, job_id))
 
     new_name = old_key.get_contents_as_string()
     new_key = Key(bucket)
