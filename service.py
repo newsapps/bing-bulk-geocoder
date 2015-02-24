@@ -152,7 +152,8 @@ def send_email_notification(address, results, settings, finished=False):
         """
     sg = sendgrid.SendGridClient(
         os.environ.get('SENDGRID_USERNAME', ''), os.environ.get('SENDGRID_PASSWORD', ''))
-    message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com', to_email=address)
+    message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com')
+    message.add_to(address)
     message.set_html(template)
     message.set_text(template)
     logging.info('Sending email report to %s' % ', '.join(message.to))
