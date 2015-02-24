@@ -124,8 +124,8 @@ def save_job_results(geocoder, job_id):
     email_address = old_key.get_metadata('email')
     if email_address:
         new_key.set_metadata('email', email_address)
-        logging.info('Results: %s' % results)
-        send_email_notification(email_address, results[0], new_name, 'finished')
+        send_email_notification(
+            email_address, geocoder.get_job_statuses(job_id=job_id), new_name, 'finished')
 
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
@@ -138,6 +138,7 @@ def send_email_notification(address, results, settings, status):
     """
     finished_url = 'http://geo.tribapps.com/geocode_finished_jobs/%s' % settings
     if status == 'finished':
+        logging.info(results)
         subject = 'Finished geocoding job %s' % settings
         template = """
         Finished geocoding. Download results at {0}<br><br>
