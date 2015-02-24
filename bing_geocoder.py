@@ -8,8 +8,33 @@ import time
 
 from csv import DictReader, DictWriter
 from datetime import datetime, timedelta
+from os.path import expanduser
 
-LOGGER = logging.getLogger(__name__)
+# Set up logging
+logging.config.dictConfig({
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s - %(levelname)s - line: %(lineno)d - %(message)s'
+        }
+    },
+    'handlers': {
+        'default': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': '%s/logs/bing_geocoder.log' % expanduser('~'),
+            'formatter': 'standard'
+        }
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default'],
+            'level': 'INFO',
+            'propagate': True
+        }
+    }
+})
 
 
 class BingGeocoder:
@@ -28,7 +53,7 @@ class BingGeocoder:
         Given list of dicts {'address', 'entity_id'}, return a batch file containing their data.
         """
         if not addresses or not len(addresses):
-            LOGGER.error('Unable to upload blank list of addresses to geocode')
+            logging.error('Unable to upload blank list of addresses to geocode')
             return
         header_preamble = 'Bing Spatial Data Services, 2.0'
         header_fields = [
@@ -45,7 +70,7 @@ class BingGeocoder:
         for address in addresses:
             body.append(line_format % (address['entity_id'], address['address'].replace('"', '\"')))
         data = "%s\n%s" % (header, '\n'.join(body))
-        LOGGER.debug('Uploading %d addresses for geocoding' % len(body))
+        logging.debug('Uploading %d addresses for geocoding' % len(body))
         return data
 
     def upload_address_batch(self, batch, prefix_preamble=True):
@@ -62,10 +87,11 @@ class BingGeocoder:
             for rs in r.json()['resourceSets']:
                 for resource in rs['resources']:
                     if 'id' in resource:
-                        LOGGER.debug('Successful upload; job id is %s' % resource['id'])
+                        logging.debug('Successful upload; job id is %s' % resource['id'])
                         return resource['id']
+            logging.warning('No job id found, job must not have been successfully uploaded')
         except Exception, e:
-            LOGGER.exception('Error uploading addresses: %s' % e)
+            logging.exception('Error uploading addresses: %s' % e)
 
     def get_job_statuses(self, min_cutoff=4320, only_completed=False, job_id=''):
         """
