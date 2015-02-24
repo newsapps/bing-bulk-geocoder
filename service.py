@@ -91,11 +91,9 @@ def check_pending_jobs(geocoder):
         if job_id:
             results = geocoder.get_job_statuses(job_id=job_id)
             if results[0]['status'] == 'Completed':
-                k = Key(bucket)
-                k.key = '%s/%s' % (pending_folder, job_id)
+                k = bucket.get_key('%s/%s' % (pending_folder, job_id))
                 settings = k.get_contents_as_string()
                 save_job_results(geocoder, job_id)
-                send_email_notification(results[0], settings, finished=True)
 
 
 def save_job_results(geocoder, job_id):
@@ -149,7 +147,7 @@ def send_email_notification(address, results, settings, finished=False):
         Just submitted job for geocoding.<br><br>
 
         We'll email you when it's done, but the results will be available at %s
-        """
+        """ % finished_url
     sg = sendgrid.SendGridClient(
         os.environ.get('SENDGRID_USERNAME', ''), os.environ.get('SENDGRID_PASSWORD', ''))
     message = sendgrid.Mail(subject=subject, from_email='noreply@tribpub.com')
