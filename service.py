@@ -63,12 +63,13 @@ def download_jobs(geocoder):
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
                         name, job_id, pending_folder))
-                    new_key = bucket.get_key('%s/%s' % (pending_folder, job_id))
-                    new_key.set_contents_from_string(name)
+                    new_key = Key(bucket)
+                    new_key.key = '%s/%s' % (pending_folder, job_id)
                     if email_address:
                         logging.info('Setting metadata to %s' % email_address)
                         new_key.set_metadata('email', email_address)
                         send_email_notification(email_address, {}, name, 'pending')
+                    new_key.set_contents_from_string(name)
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
