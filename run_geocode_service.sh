@@ -3,7 +3,7 @@
 PROJECT=bing-bulk-geocoder
 
 ROOT=/home/newsapps/sites/$PROJECT
-SECRETS=/home/newsapps/sites/secrets/staging_secrets.sh
+SECRETS=/home/newsapps/sites/secrets/production_secrets.sh
 BING_SECRETS=/home/newsapps/sites/secrets/bing_secrets.sh
 VIRTUALENV=/home/newsapps/.virtualenvs/$PROJECT/bin/activate
 
