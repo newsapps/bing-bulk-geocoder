@@ -57,7 +57,7 @@ def download_jobs(geocoder):
             name = f.name.replace('%s/' % awaiting_folder, '')
             if name:
                 logging.info('Uploading %s to Bing' % name)
-                logging.info('Metadata: %s' % f.metadata)
+                logging.info('Metadata: %s' % f.get_metadata('x-amz-meta-email'))
                 job_id = geocoder.upload_address_batch(f.get_contents_as_string())
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
@@ -67,8 +67,8 @@ def download_jobs(geocoder):
                     new_key.set_contents_from_string(name)
                     for md in f.metadata.keys():
                         new_key.set_metadata(md, f.metadata[md])
-                    if 'x-amz-metadata-email' in f.metadata:
-                        send_email_notification(f.metadata['x-amz-metadata-email'], {}, new_name)
+                    if 'x-amz-meta-email' in f.metadata:
+                        send_email_notification(f.metadata['x-amz-meta-email'], {}, new_name)
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
@@ -124,9 +124,9 @@ def save_job_results(geocoder, job_id):
     writer.writerows(results)
     result_string.seek(0)
 
-    if 'x-amz-metadata-email' in old_key.metadata:
+    if 'x-amz-meta-email' in old_key.metadata:
         send_email_notification(
-            old_key.metadata['x-amz-metadata-email'], results, new_name, finished=True)
+            old_key.metadata['x-amz-meta-email'], results, new_name, finished=True)
 
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
