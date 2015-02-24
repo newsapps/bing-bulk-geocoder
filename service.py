@@ -62,8 +62,7 @@ def download_jobs(geocoder):
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
                         name, job_id, pending_folder))
-                    new_key = Key(bucket)
-                    new_key.key = '%s/%s' % (pending_folder, job_id)
+                    new_key = bucket.get_key('%s/%s' % (pending_folder, job_id))
                     new_key.set_contents_from_string(name)
                     email_address = fkey.get_metadata('email')
                     if email_address:
