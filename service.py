@@ -58,7 +58,6 @@ def download_jobs(geocoder):
             fkey = bucket.get_key(f.name)
             if name:
                 logging.info('Uploading %s to Bing' % name)
-                logging.info('Metadata: %s (%s)' % (fkey.get_metadata('email'), fkey.metadata))
                 job_id = geocoder.upload_address_batch(fkey.get_contents_as_string())
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
@@ -66,10 +65,11 @@ def download_jobs(geocoder):
                     new_key = Key(bucket)
                     new_key.key = '%s/%s' % (pending_folder, job_id)
                     new_key.set_contents_from_string(name)
-                    for md in fkey.metadata.keys():
-                        new_key.set_metadata(md, fkey.metadata[md])
-                    if 'x-amz-meta-email' in fkey.metadata:
-                        send_email_notification(fkey.metadata['x-amz-meta-email'], {}, new_name)
+                    email_address = fkey.get_metadata('email')
+                    if email_address:
+                        logging.info('Setting metadata to %s' % email_address)
+                        new_key.set_metadata('email', email_address)
+                        send_email_notification(email_address, {}, name)
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
@@ -108,15 +108,11 @@ def save_job_results(geocoder, job_id):
 
     connection = boto.connect_s3()
     bucket = connection.get_bucket(GEO_BUCKET)
-
-    old_key = Key(bucket)
-    old_key.key = '%s/%s' % (pending_folder, job_id)
+    old_key = bucket.get_key((pending_folder, job_id))
 
     new_name = old_key.get_contents_as_string()
     new_key = Key(bucket)
     new_key.key = '%s/%s' % (finished_folder, new_name)
-    for md in old_key.metadata.keys():
-        new_key.set_metadata(md, old_key.metadata[md])
 
     results = geocoder.get_job_results(job_id)
     result_string = StringIO.StringIO()
@@ -125,9 +121,10 @@ def save_job_results(geocoder, job_id):
     writer.writerows(results)
     result_string.seek(0)
 
-    if 'x-amz-meta-email' in old_key.metadata:
-        send_email_notification(
-            old_key.metadata['x-amz-meta-email'], results, new_name, finished=True)
+    email_address = old_key.get_metadata('email')
+    if email_address:
+        new_key.set_metadata('email', email_address)
+        send_email_notification(email_address, results, new_name, finished=True)
 
     new_key.set_contents_from_string(result_string.getvalue())
     new_key.make_public()
