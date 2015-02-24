@@ -138,7 +138,8 @@ def send_email_notification(address, results, settings, status):
     """
     finished_url = 'http://geo.tribapps.com/geocode_finished_jobs/%s' % settings
     if status == 'finished':
-        logging.info(results)
+        if not results:
+            results = [{}]
         subject = 'Finished geocoding job %s' % settings
         template = """
         Finished geocoding. Download results at {0}<br><br>
@@ -146,8 +147,8 @@ def send_email_notification(address, results, settings, status):
         Had trouble processing {1:,d} addresses out of {2:,d} submitted.
         """.format(
             finished_url,
-            results.get('failedEntityCount', 0),
-            results.get('processedEntityCount', 0))
+            results[0].get('failedEntityCount', 0),
+            results[0].get('processedEntityCount', 0))
     elif status == 'pending':
         subject = 'Began processing geocode job %s' % settings
         template = """
