@@ -124,6 +124,7 @@ def save_job_results(geocoder, job_id):
     email_address = old_key.get_metadata('email')
     if email_address:
         new_key.set_metadata('email', email_address)
+        logging.info('Results: %s' % results)
         send_email_notification(email_address, results[0], new_name, 'finished')
 
     new_key.set_contents_from_string(result_string.getvalue())
@@ -142,7 +143,10 @@ def send_email_notification(address, results, settings, status):
         Finished geocoding. Download results at {0}<br><br>
 
         Had trouble processing {1:,d} addresses out of {2:,d} submitted.
-        """.format(finished_url, results['failedEntityCount'], results['processedEntityCount'])
+        """.format(
+            finished_url,
+            results.get('failedEntityCount', 0),
+            results.get('processedEntityCount', 0))
     elif status == 'pending':
         subject = 'Began processing geocode job %s' % settings
         template = """
