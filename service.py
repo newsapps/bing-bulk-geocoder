@@ -55,20 +55,21 @@ def download_jobs(geocoder):
     for f in files:
         try:
             name = f.name.replace('%s/' % awaiting_folder, '')
+            fkey = bucket.get_key(f.name)
             if name:
                 logging.info('Uploading %s to Bing' % name)
-                logging.info('Metadata: %s' % f.get_metadata('email'))
-                job_id = geocoder.upload_address_batch(f.get_contents_as_string())
+                logging.info('Metadata: %s (%s)' % (fkey.get_metadata('email'), fkey.metadata))
+                job_id = geocoder.upload_address_batch(fkey.get_contents_as_string())
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
                         name, job_id, pending_folder))
                     new_key = Key(bucket)
                     new_key.key = '%s/%s' % (pending_folder, job_id)
                     new_key.set_contents_from_string(name)
-                    for md in f.metadata.keys():
-                        new_key.set_metadata(md, f.metadata[md])
-                    if 'x-amz-meta-email' in f.metadata:
-                        send_email_notification(f.metadata['x-amz-meta-email'], {}, new_name)
+                    for md in fkey.metadata.keys():
+                        new_key.set_metadata(md, fkey.metadata[md])
+                    if 'x-amz-meta-email' in fkey.metadata:
+                        send_email_notification(fkey.metadata['x-amz-meta-email'], {}, new_name)
                     old_key = Key(bucket)
                     old_key.key = '%s/%s' % (awaiting_folder, name)
                     old_key.delete()
