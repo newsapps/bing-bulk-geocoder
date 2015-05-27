@@ -1,40 +1,11 @@
-import json
 import logging
 import os
 import pytz
 import requests
 import StringIO
-import time
 
 from csv import DictReader, DictWriter
 from datetime import datetime, timedelta
-from os.path import expanduser
-
-# Set up logging
-logging.config.dictConfig({
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s - %(levelname)s - line: %(lineno)d - %(message)s'
-        }
-    },
-    'handlers': {
-        'default': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '%s/logs/bing_geocoder.log' % expanduser('~'),
-            'formatter': 'standard'
-        }
-    },
-    'loggers': {
-        '': {
-            'handlers': ['default'],
-            'level': 'INFO',
-            'propagate': True
-        }
-    }
-})
 
 
 class BingGeocoder:
@@ -218,49 +189,3 @@ def pretty_print_statuses(statuses):
             status['processedEntityCount'],
             status['failedEntityCount']
         )
-
-
-def main():
-    env_var = 'BING_MAPS_API_KEY'
-    if env_var in os.environ:
-        geocoder = BingGeocoder(os.environ[env_var])
-    else:
-        key = raw_input('Enter Bing Maps API key: ')
-        if key:
-            geocoder = BingGeocoder(key)
-        else:
-            print 'Error: Need to enter Bing Maps API key.'
-            return
-
-    option = raw_input('Type g to (g)et results, u to (u)pload addresses for geocoding, s to (s)ee'
-                       ' statuses of recent jobs: ')
-    if option.lower() not in ['g', 'u', 's']:
-        print 'Need to enter either g, s or u.'
-        return
-
-    if option.lower() == 'u':
-        path = raw_input('Enter path to file containing id,address pairs: ')
-        if not path:
-            print 'Need to provide a path to a file.'
-            return
-        batch = geocoder.batch_addresses(get_addresses_from_file(path))
-        job_id = geocoder.upload_address_batch(batch)
-        if job_id:
-            print 'Successful upload. Job id is %s' % job_id
-
-    if option.lower() == 'g':
-        job_id = raw_input('Enter job id to download results for, leave blank to see status of last'
-                           ' 24 hours\' worth of jobs: ')
-        results = geocoder.get_job_results(job_id)
-        if len(results):
-            path = raw_input('Enter path to file that will store geocoded addresses: ')
-            if not path:
-                print 'Need to provide a path to a file.'
-                return
-            write_addresses_to_file(path, results)
-
-    if option.lower() == 's':
-        pretty_print_statuses(geocoder.get_job_statuses())
-
-if __name__ == '__main__':
-    main()

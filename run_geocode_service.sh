@@ -14,5 +14,5 @@ cd $ROOT
 . $SENDGRID_SECRETS
 . $VIRTUALENV
 
-python service.py download
-python service.py statuses
+bing_geocoder service download
+bing_geocoder service statuses

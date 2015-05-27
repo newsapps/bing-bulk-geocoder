@@ -5,27 +5,22 @@ Python library to make bing bulk geocoding a wee bit easier.
 
 This is really early in development, so there may well be bugs or features you'd like to see. Please file issues for them so I know what to prioritize. Thanks.
 
-## Setup
+## Installation
 
 This script requires a [Bing Maps API key](http://www.microsoft.com/maps/create-a-bing-maps-key.aspx). It won't work at all without one. Once you get it, put it in your environment as BING_MAPS_API_KEY; if you use the script interactively and no key is present in your environment, it'll ask you for it. If you use the class, pass in the key as the only initialization parameter.
 
-## Usage
+    pip install git+https://github.com/newsapps/bing-bulk-geocoder.git#egg=bing_geocoder
+
+If you want to run the service, you'll need to install the boto and sendgrid packages:
+
+    pip install boto
+    pip install sendgrid
+
+## Command Line Usage
 
 This module can be used directly from the command line, or imported as a class in another script.
 
-### Command-line usage
-
-Put it in a virtualenv and install the requirements.txt file:
-
-    pip install -r requirements.txt
-
-Then, just run it:
-
-    python bing_geocoder.py
-
-It'll ask you if you want to upload addresses; get geocoded addresses back from Bing; or see status of recent jobs.
-
-#### Uploading addresses
+### Uploading addresses
 
 If you want to upload addresses, you'll need to give it the full path to a text file containing lines that look like this, with no header row:
 
@@ -33,23 +28,36 @@ If you want to upload addresses, you'll need to give it the full path to a text 
 
 entity_id is meant to make it easier for you to import the results into whatever system you need them for, without having to match strings with the address. Address should be either quoted or contain no commas, though if neither of those are true, it'll try to make it work anyway.
 
+Then run:
+
+   bing_geocoder upload /path/to/file.csv
+
 When the upload completes, the script will give you the job ID, which you'll need later to get the results back. If you lose track of it, you can still get your results later on; see the next section.
 
-#### Seeing the status of recent jobs
+### Seeing the status of recent jobs
 
-When you select "see status", you'll be shown the status of jobs created within the last 72 hours, including their job ids. This will eventually be configurable.
 
-#### Getting results for a job
+To see the status of jobs created within the last 72 hours, including their job ids, run:
 
-When you select "get results", you'll be asked to enter the job id (determined above) to download results for, followed by the full path to save results to. It'll create a comma-separated file with a header row that will look like this:
+    bing_geocoder status
+
+This will eventually be configurable.
+
+### Downloading results for a job
+
+To download the results for a batch, run:
+ 
+    bing_geocoder download <job_id> <path>
+
+with a job id recorded when the file was uploaded, or from running the status command.  You must also provide a full path to save results to. It'll create a comma-separated file with a header row that will look like this:
 
     Id,GeocodeRequest/Query,GeocodeResponse/Point/Latitude,GeocodeResponse/Point/Longitude
 
 Id is the entity id you assigned the row during upload. GeocodeRequest/Query is the original address you requested, and the other fields are what you thought they were ([and we let 'em off the hook!](http://www.youtube.com/watch?v=SWmQbk5h86w))
 
-### Usage in your code
+## API 
 
-This module creates a class, BingGeocoder, with three methods (and an init):
+This package provides a class, BingGeocoder, with three methods (and an init):
 
     init(bing_maps_api_key):
         """
