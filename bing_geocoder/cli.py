@@ -91,6 +91,8 @@ def status(api_key=None):
 cli.add_command(status)
 
 @click.command()
+@click.argument('job_id', type=str)
+@click.argument('path', type=click.Path(dir_okay=False))
 @click.option('--api-key', type=str, default=None, help="Bing Maps API key")
 def download(job_id, path, api_key=None):
     logging.config.dictConfig(logging_config)

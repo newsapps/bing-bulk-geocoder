@@ -4,7 +4,7 @@ import pytz
 import requests
 import StringIO
 
-from csv import DictReader, DictWriter
+import csv
 from datetime import datetime, timedelta
 
 
@@ -19,14 +19,19 @@ class BingGeocoder:
         else:
             self.key = os.env.get('BING_MAPS_API_KEY', None)
 
-    def batch_addresses(self, addresses):
+    def batch_addresses(self, addresses, prefix_preamble=False):
         """
         Given list of dicts {'address', 'entity_id'}, return a batch file containing their data.
         """
         if not addresses or not len(addresses):
             logging.error('Unable to upload blank list of addresses to geocode')
             return
+        out = StringIO.StringIO()
+        writer = csv.writer(out)
         header_preamble = 'Bing Spatial Data Services, 2.0'
+        if prefix_preamble:
+            writer.writerow([header_preamble])
+
         header_fields = [
             'Id',
             'GeocodeRequest/Culture',
@@ -35,14 +40,13 @@ class BingGeocoder:
             'GeocodeResponse/Point/Latitude',
             'GeocodeResponse/Point/Longitude'
         ]
-        header = '%s\n%s' % (header_preamble, ', '.join(header_fields))
-        body = []
-        line_format = '%s,en-US,High,"%s",,'
+        writer.writerow(header_fields)
+
         for address in addresses:
-            body.append(line_format % (address['entity_id'], address['address'].replace('"', '\"')))
-        data = "%s\n%s" % (header, '\n'.join(body))
-        logging.debug('Uploading %d addresses for geocoding' % len(body))
-        return data
+            row = [address['entity_id'], "en-US", "High", address['address']]
+            writer.writerow(row)
+        logging.debug('Uploading %d addresses for geocoding' % len(addresses))
+        return out.getvalue()
 
     def upload_address_batch(self, batch, prefix_preamble=True):
         """
@@ -125,7 +129,7 @@ class BingGeocoder:
                             result_data.flush()
                             result_data.seek(0)
                             # Iterating twice over file in order to rely on csv DictReader parsing
-                            reader = DictReader(result_data)
+                            reader = csv.DictReader(result_data)
                             for line in reader:
                                 result_rows.append(line)
         return result_rows
@@ -138,11 +142,11 @@ def get_addresses_from_file(path):
     address, but if you don't the script will try to deal.
     """
     addresses = []
-    with open(path) as filehandle:
-        for line in filehandle:
-            data = line[:-1].split(',', 1)
-            if len(data) == 2 and data[0] and data[1]:
-                addresses.append({'entity_id': data[0], 'address': data[1]})
+    with open(path) as f:
+        reader = csv.reader(f)
+        for row in reader:
+            addresses.append({'entity_id': row[0], 'address': row[1]})
+
     if not len(addresses):
         print 'Heads up: not able to find any addresses in file %s' % path
     return addresses
@@ -160,7 +164,7 @@ def write_addresses_to_file(path, address_rows):
         'GeocodeResponse/Point/Longitude'
     ]
     with open(path, 'w+') as filehandle:
-        writer = DictWriter(filehandle, fieldnames=fieldnames, extrasaction='ignore')
+        writer = csv.DictWriter(filehandle, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         for row in address_rows:
             writer.writerow(row)
