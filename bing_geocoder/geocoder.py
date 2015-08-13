@@ -68,6 +68,10 @@ class BingGeocoder:
         except Exception, e:
             logging.exception('Error uploading addresses: %s' % e)
 
+    def upload_addresses(self, addresses, prefix_preamble=True):
+        batch = self.batch_addresses(addresses)
+        return self.upload_address_batch(batch, prefix_preamble=prefix_preamble)
+
     def get_job_statuses(self, min_cutoff=4320, only_completed=False, job_id=''):
         """
         Connect to Bing API and get list of all available jobs. Only return jobs completed after
