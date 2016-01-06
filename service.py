@@ -90,7 +90,7 @@ def separate_bing_acceptable_data(data_str):
             if col.lower() == 'id':
                 bing_row['Id'] = row['Id']
                 extra_row['Id'] = row['Id']
-            else if col in bing_fields:
+            elif col in bing_fields:
                 bing_row[col] = row[col]
             else:
                 extra_row[col] = row[col]
