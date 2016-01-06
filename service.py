@@ -48,7 +48,7 @@ def convert_dict_to_str(data):
     writer.writeheader()
     writer.writerows(data)
     result_string.seek(0)
-    return result_string
+    return result_string.getvalue()
 
 
 def merge_data(data, extra_data):
