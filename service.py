@@ -115,42 +115,42 @@ def download_jobs(geocoder):
     bucket = connection.get_bucket(GEO_BUCKET)
     files = bucket.list('%s' % awaiting_folder)
     for f in files:
-        try:
-            name = f.name.replace('%s/' % awaiting_folder, '')
-            fkey = bucket.get_key(f.name)
-            email_address = fkey.get_metadata('email')
-            if name:
-                logging.info('Uploading %s to Bing' % name)
-                old_key = Key(bucket)
-                old_key.key = '%s/%s' % (awaiting_folder, name)
-                # Need to strip out any non-Bing-acceptable fields
-                # 1. Given CSV, create 2 rows of dicts, each w/field for Id: 1 for Bing, 1 to stash
-                # 2. Put stashed CSV/dict in new folder, geocode_stashed, with orig filename
-                # 3. In save_job_results, if filename match in geocode_stashed:
-                #   a) Download stashed file
-                #   b) Merge stashed file with results from Bing, keyed on Id
-                #   c) Delete stashed file and put merged file in geocode_finished_jobs
-                bing_data, extra_data = separate_bing_acceptable_data(fkey.get_contents_as_string())
-                job_id = geocoder.upload_address_batch(bing_data, prep_batch=True)
-                if job_id:
-                    logging.info('Moving batch with old id %s to new id %s in %s' % (
-                        name, job_id, pending_folder))
-                    new_key = Key(bucket)
-                    new_key.key = '%s/%s' % (pending_folder, job_id)
-                    if email_address:
-                        logging.info('Setting metadata to %s' % email_address)
-                        new_key.set_metadata('email', email_address)
-                        send_email_notification(email_address, {}, name, 'pending')
-                    new_key.set_contents_from_string(name)
-                    extra_key = Key(bucket)
-                    extra_key.key = '%s/%s' % (extra_folder, name)
-                    extra_key.set_contents_from_string(extra_data)
-                    old_key.delete()
-                else:
-                    send_email_notification(email_address, {}, name, 'error')
-                    old_key.delete()
-        except Exception, e:
-            logging.warning('Error uploading %s to Bing: %s' % (name, e))
+        #try:
+        name = f.name.replace('%s/' % awaiting_folder, '')
+        fkey = bucket.get_key(f.name)
+        email_address = fkey.get_metadata('email')
+        if name:
+            logging.info('Uploading %s to Bing' % name)
+            old_key = Key(bucket)
+            old_key.key = '%s/%s' % (awaiting_folder, name)
+            # Need to strip out any non-Bing-acceptable fields
+            # 1. Given CSV, create 2 rows of dicts, each w/field for Id: 1 for Bing, 1 to stash
+            # 2. Put stashed CSV/dict in new folder, geocode_stashed, with orig filename
+            # 3. In save_job_results, if filename match in geocode_stashed:
+            #   a) Download stashed file
+            #   b) Merge stashed file with results from Bing, keyed on Id
+            #   c) Delete stashed file and put merged file in geocode_finished_jobs
+            bing_data, extra_data = separate_bing_acceptable_data(fkey.get_contents_as_string())
+            job_id = geocoder.upload_address_batch(bing_data, prep_batch=True)
+            if job_id:
+                logging.info('Moving batch with old id %s to new id %s in %s' % (
+                    name, job_id, pending_folder))
+                new_key = Key(bucket)
+                new_key.key = '%s/%s' % (pending_folder, job_id)
+                if email_address:
+                    logging.info('Setting metadata to %s' % email_address)
+                    new_key.set_metadata('email', email_address)
+                    send_email_notification(email_address, {}, name, 'pending')
+                new_key.set_contents_from_string(name)
+                extra_key = Key(bucket)
+                extra_key.key = '%s/%s' % (extra_folder, name)
+                extra_key.set_contents_from_string(extra_data)
+                old_key.delete()
+            else:
+                send_email_notification(email_address, {}, name, 'error')
+                old_key.delete()
+        #except Exception, e:
+            #logging.warning('Error uploading %s to Bing: %s' % (name, e))
 
 
 def check_pending_jobs(geocoder):
