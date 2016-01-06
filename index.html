@@ -19,6 +19,33 @@
                             <h3 class="masthead-brand">Tribune Geocoder</h3>
                         </div>
                     </div>
+                                            <div class="row">
+                            <div class="col-xs-12">
+                                <h2>Instructions</h2>
+                                <p>
+                                    Create a CSV file containing the addresses you want to geocode. 1 column should
+                                    contain an ID field, 1 column should contain an address, and there should be
+                                    1 column each for Latitude and Longitude.
+                                </p>
+                                <p>
+                                    Make sure to use the exact names for your columns, as in the example below:
+                                </p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-xs-3">
+                                <strong>Id</strong>
+                            </div>
+                            <div class="col-xs-3">
+                                <strong>GeocodeRequest/Query</strong>
+                            </div>
+                            <div class="col-xs-3">
+                                <strong>GeocodeResponse/Point/Latitude</strong>
+                            </div>
+                            <div class="col-xs-3">
+                                <strong>GeocodeResponse/Point/Longitude</strong>
+                            </div>
+                        </div>
                     <div class="inner cover">
                         <h1 class="cover-heading">Upload a file containing addresses to geocode</h1>
                         <input type="file" id="file-chooser" class="lead btn btn-default" />

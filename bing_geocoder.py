@@ -1,16 +1,14 @@
-import json
 import logging
 import os
 import pytz
 import requests
 import StringIO
-import time
 
-from csv import DictReader, DictWriter
+import csv
 from datetime import datetime, timedelta
-from os.path import expanduser
 
 # Set up logging
+"""
 logging.config.dictConfig({
     'version': 1,
     'disable_existing_loggers': False,
@@ -35,7 +33,7 @@ logging.config.dictConfig({
         }
     }
 })
-
+"""
 
 class BingGeocoder:
     """
@@ -48,14 +46,44 @@ class BingGeocoder:
         else:
             self.key = os.env.get('BING_MAPS_API_KEY', None)
 
-    def batch_addresses(self, addresses):
+    def batch_points_for_reverse_geocode(self, points):
+        """
+        Given list of dicts {'lat', 'lon', 'entity_id'}, return a batch file containing their data.
+        """
+        if not points or not len(points):
+            logging.error('Unable to upload blank list of points to reverse geocode')
+            return
+        header_preamble = 'Bing Spatial Data Services, 2.0'
+        header_fields = [
+            'Id',
+            'GeocodeRequest/Culture',
+            'GeocodeRequest/ConfidenceFilter/MinimumConfidence',
+            'ReverseGeocodeRequest/Location/Latitude',
+            'ReverseGeocodeRequest/Location/Longitude',
+            'GeocodeResponse/Address/FormattedAddress'
+        ]
+        header = '%s\n%s' % (header_preamble, ', '.join(header_fields))
+        body = []
+        line_format = '%s,en-US,High,%s,%s,'
+        for point in points:
+            body.append(line_format % (point['entity_id'], point['lat'], point['lon']))
+        data = "%s\n%s" % (header, '\n'.join(body))
+        logging.debug('Uploading %d addresses for geocoding' % len(body))
+        return data
+
+    def batch_addresses(self, addresses, prefix_preamble=False):
         """
         Given list of dicts {'address', 'entity_id'}, return a batch file containing their data.
         """
         if not addresses or not len(addresses):
             logging.error('Unable to upload blank list of addresses to geocode')
             return
+        out = StringIO.StringIO()
+        writer = csv.writer(out)
         header_preamble = 'Bing Spatial Data Services, 2.0'
+        if prefix_preamble:
+            writer.writerow([header_preamble])
+
         header_fields = [
             'Id',
             'GeocodeRequest/Culture',
@@ -64,23 +92,47 @@ class BingGeocoder:
             'GeocodeResponse/Point/Latitude',
             'GeocodeResponse/Point/Longitude'
         ]
-        header = '%s\n%s' % (header_preamble, ', '.join(header_fields))
-        body = []
-        line_format = '%s,en-US,High,"%s",,'
-        for address in addresses:
-            body.append(line_format % (address['entity_id'], address['address'].replace('"', '\"')))
-        data = "%s\n%s" % (header, '\n'.join(body))
-        logging.debug('Uploading %d addresses for geocoding' % len(body))
-        return data
+        writer.writerow(header_fields)
 
-    def upload_address_batch(self, batch, prefix_preamble=True):
+        for address in addresses:
+            row = [address['entity_id'], "en-US", "High", address['address']]
+            writer.writerow(row)
+        logging.debug('Uploading %d addresses for geocoding' % len(addresses))
+        return out.getvalue()
+
+    def prep_batch(self, batch):
+        """
+        Given a string, batch, containing a csv with only Id and Address fields, convert to retrieve
+        Bing geocode data. Basically, this means setting the proper headers for the minimal, common
+        use-case.
+        """
+        addresses = []
+        reader = DictReader(batch)
+        for line in reader:
+            address = {}
+            if 'address' in line:
+                address['address'] = line['address']
+            elif 'Address' in line:
+                address['address'] = line['Address']
+            if 'id' in line:
+                address['entity_id'] = line['id']
+            elif 'Id' in line:
+                address['entity_id'] = line['Id']
+            elif 'ID' in line:
+                address['entity_id'] = line['ID']
+            addresses.append(address)
+        return self.batch_addresses(addresses)
+
+    def upload_address_batch(self, batch, prefix_preamble=True, prep_batch=False):
         """
         Given a string for a batch, send it to Bing for processing. If successful, returns string
         corresponding to job ID of uploaded batch.
         """
         url = ('http://spatial.virtualearth.net/REST/v1/Dataflows/Geocode?input=csv&key=%s' %
                self.key)
-        if prefix_preamble:
+        if prep_batch:
+            batch = self.prep_batch(batch)
+        elif prefix_preamble:
             batch = 'Bing Spatial Data Services, 2.0\n%s' % batch
         try:
             r = requests.post(url, data=batch, headers={"Content-Type": "text/plain"})
@@ -92,6 +144,10 @@ class BingGeocoder:
             logging.warning('No job id found, job must not have been successfully uploaded')
         except Exception, e:
             logging.exception('Error uploading addresses: %s' % e)
+
+    def upload_addresses(self, addresses, prefix_preamble=True):
+        batch = self.batch_addresses(addresses)
+        return self.upload_address_batch(batch, prefix_preamble=prefix_preamble)
 
     def get_job_statuses(self, min_cutoff=4320, only_completed=False, job_id=''):
         """
@@ -154,7 +210,7 @@ class BingGeocoder:
                             result_data.flush()
                             result_data.seek(0)
                             # Iterating twice over file in order to rely on csv DictReader parsing
-                            reader = DictReader(result_data)
+                            reader = csv.DictReader(result_data)
                             for line in reader:
                                 result_rows.append(line)
         return result_rows
@@ -167,11 +223,11 @@ def get_addresses_from_file(path):
     address, but if you don't the script will try to deal.
     """
     addresses = []
-    with open(path) as filehandle:
-        for line in filehandle:
-            data = line[:-1].split(',', 1)
-            if len(data) == 2 and data[0] and data[1]:
-                addresses.append({'entity_id': data[0], 'address': data[1]})
+    with open(path) as f:
+        reader = csv.reader(f)
+        for row in reader:
+            addresses.append({'entity_id': row[0], 'address': row[1]})
+
     if not len(addresses):
         print 'Heads up: not able to find any addresses in file %s' % path
     return addresses
@@ -189,7 +245,7 @@ def write_addresses_to_file(path, address_rows):
         'GeocodeResponse/Point/Longitude'
     ]
     with open(path, 'w+') as filehandle:
-        writer = DictWriter(filehandle, fieldnames=fieldnames, extrasaction='ignore')
+        writer = csv.DictWriter(filehandle, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         for row in address_rows:
             writer.writerow(row)
@@ -218,49 +274,3 @@ def pretty_print_statuses(statuses):
             status['processedEntityCount'],
             status['failedEntityCount']
         )
-
-
-def main():
-    env_var = 'BING_MAPS_API_KEY'
-    if env_var in os.environ:
-        geocoder = BingGeocoder(os.environ[env_var])
-    else:
-        key = raw_input('Enter Bing Maps API key: ')
-        if key:
-            geocoder = BingGeocoder(key)
-        else:
-            print 'Error: Need to enter Bing Maps API key.'
-            return
-
-    option = raw_input('Type g to (g)et results, u to (u)pload addresses for geocoding, s to (s)ee'
-                       ' statuses of recent jobs: ')
-    if option.lower() not in ['g', 'u', 's']:
-        print 'Need to enter either g, s or u.'
-        return
-
-    if option.lower() == 'u':
-        path = raw_input('Enter path to file containing id,address pairs: ')
-        if not path:
-            print 'Need to provide a path to a file.'
-            return
-        batch = geocoder.batch_addresses(get_addresses_from_file(path))
-        job_id = geocoder.upload_address_batch(batch)
-        if job_id:
-            print 'Successful upload. Job id is %s' % job_id
-
-    if option.lower() == 'g':
-        job_id = raw_input('Enter job id to download results for, leave blank to see status of last'
-                           ' 24 hours\' worth of jobs: ')
-        results = geocoder.get_job_results(job_id)
-        if len(results):
-            path = raw_input('Enter path to file that will store geocoded addresses: ')
-            if not path:
-                print 'Need to provide a path to a file.'
-                return
-            write_addresses_to_file(path, results)
-
-    if option.lower() == 's':
-        pretty_print_statuses(geocoder.get_job_statuses())
-
-if __name__ == '__main__':
-    main()

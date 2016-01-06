@@ -42,6 +42,64 @@ logging.config.dictConfig({
 GEO_BUCKET = 'geo.tribapps.com'
 
 
+def convert_dict_to_str(data):
+    result_string = StringIO.StringIO()
+    writer = DictWriter(result_string, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+    result_string.seek(0)
+    return result_string
+
+
+def merge_data(data, extra_data):
+    """
+    Given a row of dicts (data) and a string containing a CSV of data (extra_data), return row of
+    dicts merging the two together.
+    """
+    extra_rows = {}
+    reader = DictReader(extra_data)
+    for row in reader:
+        extra_rows[row['Id']] = row
+    for row in data:
+        if row['Id'] in extra_rows:
+            row.update_extra_rows[row['Id']]
+    return data
+
+
+def separate_bing_acceptable_data(data_str):
+    """
+    Given a string containing a CSV of data, return two strings containing CSVs of data:
+    1 containing Id plus all Bing fields; 1 containing Id plus all non-Bing fields
+    """
+    bing_data = []
+    extra_data = []
+    bing_fields = [
+        'GeocodeRequest/Culture',
+        'GeocodeRequest/ConfidenceFilter/MinimumConfidence',
+        'ReverseGeocodeRequest/Location/Latitude',
+        'ReverseGeocodeRequest/Location/Longitude',
+        'GeocodeResponse/Address/FormattedAddress',
+        'GeocodeResponse/Point/Latitude',
+        'GeocodeResponse/Point/Longitude'
+    ]
+    reader = DictReader(data_str)
+    for row in reader:
+        bing_row = {}
+        extra_row = {}
+        for col in row:
+            if col.lower() == 'id':
+                bing_row['Id'] = row['Id']
+                extra_row['Id'] = row['Id']
+            else if col in bing_fields:
+                bing_row[col] = row[col]
+            else:
+                extra_row[col] = row[col]
+        bing_data.append(bing_row)
+        if len(extra_row.keys()) > 1:
+            extra_data.append(extra_row)
+    return (convert_dict_to_str(bing_data), convert_dict_to_str(extra_data))
+
+
 def download_jobs(geocoder):
     """
     Download and submit jobs from S3.
@@ -49,6 +107,7 @@ def download_jobs(geocoder):
     logging.info('Downloading jobs')
     awaiting_folder = 'geocode_awaiting_submission'
     pending_folder = 'geocode_pending_jobs'
+    extra_folder = 'geocode_extra_fields'
     connection = boto.connect_s3()
     bucket = connection.get_bucket(GEO_BUCKET)
     files = bucket.list('%s' % awaiting_folder)
@@ -59,7 +118,17 @@ def download_jobs(geocoder):
             email_address = fkey.get_metadata('email')
             if name:
                 logging.info('Uploading %s to Bing' % name)
-                job_id = geocoder.upload_address_batch(fkey.get_contents_as_string())
+                old_key = Key(bucket)
+                old_key.key = '%s/%s' % (awaiting_folder, name)
+                # Need to strip out any non-Bing-acceptable fields
+                # 1. Given CSV, create 2 rows of dicts, each w/field for Id: 1 for Bing, 1 to stash
+                # 2. Put stashed CSV/dict in new folder, geocode_stashed, with orig filename
+                # 3. In save_job_results, if filename match in geocode_stashed:
+                #   a) Download stashed file
+                #   b) Merge stashed file with results from Bing, keyed on Id
+                #   c) Delete stashed file and put merged file in geocode_finished_jobs
+                bing_data, extra_data = separate_bing_acceptable_data(fkey.get_contents_as_string())
+                job_id = geocoder.upload_address_batch(bing_data, prep_batch=True)
                 if job_id:
                     logging.info('Moving batch with old id %s to new id %s in %s' % (
                         name, job_id, pending_folder))
@@ -70,11 +139,13 @@ def download_jobs(geocoder):
                         new_key.set_metadata('email', email_address)
                         send_email_notification(email_address, {}, name, 'pending')
                     new_key.set_contents_from_string(name)
-                    old_key = Key(bucket)
-                    old_key.key = '%s/%s' % (awaiting_folder, name)
+                    extra_key = Key(bucket)
+                    extra_key.key = '%s/%s' % (extra_folder, name)
+                    extra_key.set_contents_from_string(extra_data)
                     old_key.delete()
                 else:
                     send_email_notification(email_address, {}, name, 'error')
+                    old_key.delete()
         except Exception, e:
             logging.warning('Error uploading %s to Bing: %s' % (name, e))
 
@@ -105,6 +176,7 @@ def save_job_results(geocoder, job_id):
     logging.info('Saving results for %s to S3' % job_id)
     finished_folder = 'geocode_finished_jobs'
     pending_folder = 'geocode_pending_jobs'
+    extra_folder = 'geocode_extra_fields'
 
     connection = boto.connect_s3()
     bucket = connection.get_bucket(GEO_BUCKET)
@@ -115,11 +187,11 @@ def save_job_results(geocoder, job_id):
     new_key.key = '%s/%s' % (finished_folder, new_name)
 
     results = geocoder.get_job_results(job_id)
-    result_string = StringIO.StringIO()
-    writer = DictWriter(result_string, fieldnames=results[0].keys())
-    writer.writeheader()
-    writer.writerows(results)
-    result_string.seek(0)
+
+    extra_key = bucket.get_key('%s/%s' % (extra_folder, new_name))
+    extra_data = extra_key.get_contents_as_string()
+    result_string = convert_dict_to_string(merge_data(results, extra_data))
+    extra_key.delete()
 
     email_address = old_key.get_metadata('email')
     if email_address:
