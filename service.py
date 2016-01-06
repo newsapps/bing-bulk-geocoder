@@ -82,8 +82,11 @@ def separate_bing_acceptable_data(data_str):
         'GeocodeResponse/Point/Latitude',
         'GeocodeResponse/Point/Longitude'
     ]
-    reader = DictReader(data_str)
+    data_file = StringIO.StringIO()
+    data_file.write(data_str)
+    reader = DictReader(data_file)
     for row in reader:
+        print row
         bing_row = {}
         extra_row = {}
         for col in row.keys():
