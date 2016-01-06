@@ -86,7 +86,7 @@ def separate_bing_acceptable_data(data_str):
     for row in reader:
         bing_row = {}
         extra_row = {}
-        for col in row:
+        for col in row.keys():
             if col.lower() == 'id':
                 bing_row['Id'] = row['Id']
                 extra_row['Id'] = row['Id']
