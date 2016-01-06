@@ -80,7 +80,8 @@ def separate_bing_acceptable_data(data_str):
         'ReverseGeocodeRequest/Location/Longitude',
         'GeocodeResponse/Address/FormattedAddress',
         'GeocodeResponse/Point/Latitude',
-        'GeocodeResponse/Point/Longitude'
+        'GeocodeResponse/Point/Longitude',
+        'GeocodeRequest/Query'
     ]
     data_file = StringIO.StringIO(data_str)
     reader = DictReader(data_file)
