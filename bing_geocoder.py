@@ -107,7 +107,7 @@ class BingGeocoder:
         use-case.
         """
         addresses = []
-        reader = DictReader(batch)
+        reader = csv.DictReader(batch)
         for line in reader:
             address = {}
             if 'address' in line:
