@@ -114,8 +114,6 @@ class BingGeocoder:
                 address['address'] = line['address']
             elif 'Address' in line:
                 address['address'] = line['Address']
-            elif 'GeocodeRequest/Query' in line:
-                address['address'] = line['GeocodeRequest/Query']
             if 'id' in line:
                 address['entity_id'] = line['id']
             elif 'Id' in line:
