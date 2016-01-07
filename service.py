@@ -57,7 +57,8 @@ def merge_data(data, extra_data):
     dicts merging the two together.
     """
     extra_rows = {}
-    reader = DictReader(extra_data)
+    extra_file = StringIO.StringIO(extra_data)
+    reader = DictReader(extra_file)
     for row in reader:
         extra_rows[row['Id']] = row
     for row in data:
