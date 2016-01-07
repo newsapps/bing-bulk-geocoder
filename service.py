@@ -42,7 +42,7 @@ logging.config.dictConfig({
 GEO_BUCKET = 'geo.tribapps.com'
 
 
-def convert_dict_to_str(data):
+def convert_dict_to_string(data):
     result_string = StringIO.StringIO()
     writer = DictWriter(result_string, fieldnames=data[0].keys())
     writer.writeheader()
@@ -99,7 +99,7 @@ def separate_bing_acceptable_data(data_str):
         bing_data.append(bing_row)
         if len(extra_row.keys()) > 1:
             extra_data.append(extra_row)
-    return (convert_dict_to_str(bing_data), convert_dict_to_str(extra_data))
+    return (convert_dict_to_string(bing_data), convert_dict_to_string(extra_data))
 
 
 def download_jobs(geocoder):
