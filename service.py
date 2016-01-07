@@ -43,6 +43,8 @@ GEO_BUCKET = 'geo.tribapps.com'
 
 
 def convert_dict_to_string(data):
+    if not data:
+        return ''
     result_string = StringIO.StringIO()
     writer = DictWriter(result_string, fieldnames=data[0].keys())
     writer.writeheader()
