@@ -63,7 +63,7 @@ def merge_data(data, extra_data):
         extra_rows[row['Id']] = row
     for row in data:
         if row['Id'] in extra_rows:
-            row.update_extra_rows[row['Id']]
+            row.update(extra_rows[row['Id']])
     return data
 
 
