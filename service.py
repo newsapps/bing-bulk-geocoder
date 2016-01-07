@@ -202,7 +202,7 @@ def save_job_results(geocoder, job_id):
         send_email_notification(
             email_address, geocoder.get_job_statuses(job_id=job_id), new_name, 'finished')
 
-    new_key.set_contents_from_string(result_string.getvalue())
+    new_key.set_contents_from_string(result_string)
     new_key.make_public()
     old_key.delete()
 
