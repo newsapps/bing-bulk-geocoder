@@ -65,7 +65,7 @@ class BingGeocoder:
                         logging.debug('Successful upload; job id is %s' % resource['id'])
                         return resource['id']
             logging.warning('No job id found, job must not have been successfully uploaded')
-        except Exception, e:
+        except Exception as e:
             logging.exception('Error uploading addresses: %s' % e)
 
     def upload_addresses(self, addresses, prefix_preamble=True):
@@ -152,7 +152,8 @@ def get_addresses_from_file(path):
             addresses.append({'entity_id': row[0], 'address': row[1]})
 
     if not len(addresses):
-        print 'Heads up: not able to find any addresses in file %s' % path
+        print('Heads up: not able to find any addresses in file {}'.format(path))
+               
     return addresses
 
 
@@ -179,16 +180,16 @@ def pretty_print_statuses(statuses):
     Convenience method to print job status info comprehensibly.
     """
     for status in statuses:
-        print """
-        Job ID: %s
-        Created: %s
-        Completed: %s
-        Current status: %s
-        Total entities: %s
-        Processed entities: %s
-        Failed entities: %s
+        msg = """
+        Job ID: {} 
+        Created: {}
+        Completed: {}
+        Current status: {}
+        Total entities: {}
+        Processed entities: {}
+        Failed entities: {}
         -----------------------
-        """ % (
+        """.format(
             status['id'],
             status['createdDate'],
             status.get('completedDate', '--'),
@@ -197,3 +198,4 @@ def pretty_print_statuses(statuses):
             status['processedEntityCount'],
             status['failedEntityCount']
         )
+        print(msg)

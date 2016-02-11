@@ -54,7 +54,7 @@ if boto is not None:
                         old_key.delete()
                     else:
                         send_email_notification(email_address, {}, name, 'error')
-            except Exception, e:
+            except Exception as e:
                 logging.warning('Error uploading %s to Bing: %s' % (name, e))
 
 
