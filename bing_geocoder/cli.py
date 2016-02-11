@@ -1,7 +1,7 @@
 import logging
 import logging.config
 import os
-from os.path import expanduser
+import os.path
 
 import click
 
@@ -26,8 +26,8 @@ logging_config = {
         'default': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': '%s/logs/geocode_service.log' % expanduser('~'),
-            'filename': '%s/logs/bing_geocoder.log' % expanduser('~'),
+            'filename': os.path.join(os.path.expanduser('~'), 'logs', 'geocode_service.log'),
+            'filename': os.path.join(os.path.expanduser('~'), 'logs', 'bing_geocoder.log'),
             'formatter': 'standard'
         }
     },

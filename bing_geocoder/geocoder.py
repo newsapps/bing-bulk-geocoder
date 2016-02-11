@@ -2,7 +2,7 @@ import logging
 import os
 import pytz
 import requests
-import StringIO
+from six import StringIO
 
 import csv
 from datetime import datetime, timedelta
@@ -26,7 +26,7 @@ class BingGeocoder:
         if not addresses or not len(addresses):
             logging.error('Unable to upload blank list of addresses to geocode')
             return
-        out = StringIO.StringIO()
+        out = StringIO()
         writer = csv.writer(out)
         header_preamble = 'Bing Spatial Data Services, 2.0'
         if prefix_preamble:
@@ -45,28 +45,33 @@ class BingGeocoder:
         for address in addresses:
             row = [address['entity_id'], "en-US", "High", address['address']]
             writer.writerow(row)
-        logging.debug('Uploading %d addresses for geocoding' % len(addresses))
-        return out.getvalue()
+
+        logging.debug("Uploading {} addresses for geocoding".format(len(addresses)))
+        payload = out.getvalue()
+
+        return payload
 
     def upload_address_batch(self, batch, prefix_preamble=True):
         """
         Given a string for a batch, send it to Bing for processing. If successful, returns string
         corresponding to job ID of uploaded batch.
         """
-        url = ('http://spatial.virtualearth.net/REST/v1/Dataflows/Geocode?input=csv&key=%s' %
+        url = ("http://spatial.virtualearth.net/REST/v1/Dataflows/Geocode?input=csv&key=" +
                self.key)
         if prefix_preamble:
-            batch = 'Bing Spatial Data Services, 2.0\n%s' % batch
+            batch = "Bing Spatial Data Services, 2.0\n{}".format(batch)
         try:
             r = requests.post(url, data=batch, headers={"Content-Type": "text/plain"})
             for rs in r.json()['resourceSets']:
                 for resource in rs['resources']:
                     if 'id' in resource:
-                        logging.debug('Successful upload; job id is %s' % resource['id'])
+                        logging.debug("Successful upload; job id is " + resource['id'])
                         return resource['id']
-            logging.warning('No job id found, job must not have been successfully uploaded')
+
+            logging.warning("No job id found, job must not have been successfully uploaded")
+
         except Exception as e:
-            logging.exception('Error uploading addresses: %s' % e)
+            logging.exception("Error uploading addresses: {}".format(e))
 
     def upload_addresses(self, addresses, prefix_preamble=True):
         batch = self.batch_addresses(addresses)
@@ -79,7 +84,8 @@ class BingGeocoder:
         only_completed to True to see only completed jobs. If job_id is given, get_job_statuses
         will return a 1-element list containing the resource for that job.
         """
-        url = ('http://spatial.virtualearth.net/REST/v1/dataflows/listjobs?key=%s' % self.key)
+        url = ("http://spatial.virtualearth.net/REST/v1/dataflows/listjobs?key="
+               + self.key)
         now = datetime.now(pytz.UTC)
         delta = timedelta(minutes=min_cutoff)
         results = []
@@ -116,26 +122,32 @@ class BingGeocoder:
         """
         results = self.get_job_statuses(job_id=job_id)
         result_rows = []
+
         for result in results:
             if result['status'] == 'Completed':
                 for link in result['links']:
                     if link.get('name', '') == 'succeeded':
-                        url = '%s?key=%s' % (link['url'], self.key)
+                        url = '{}?key={}'.format(link['url'], self.key)
                         r = requests.get(url, headers={"Content-Type": "text/plain"})
+
                         if len(r.text.splitlines()) > 2:
-                            result_data = StringIO.StringIO()
+                            result_data = StringIO()
                             # Bing results data comes back with space+comma separator in header
-                            result_data.write(
-                                '%s\n' % r.text.splitlines()[1].replace(', ', ',').encode(
-                                    'utf-8', errors='replace'))
+                            result_data.write("{}\n".format(
+                                r.text.splitlines()[1].replace(', ', ',')
+                            ))
+
                             for line in r.text.splitlines()[2:]:
-                                result_data.write('%s\n' % line.encode('utf-8', errors='replace'))
+                                result_data.write("{}\n".format(
+                                    line))
+
                             result_data.flush()
                             result_data.seek(0)
                             # Iterating twice over file in order to rely on csv DictReader parsing
                             reader = csv.DictReader(result_data)
-                            for line in reader:
-                                result_rows.append(line)
+                            for row in reader:
+                                result_rows.append(row)
+
         return result_rows
 
 
@@ -153,7 +165,7 @@ def get_addresses_from_file(path):
 
     if not len(addresses):
         print('Heads up: not able to find any addresses in file {}'.format(path))
-               
+
     return addresses
 
 
@@ -181,7 +193,7 @@ def pretty_print_statuses(statuses):
     """
     for status in statuses:
         msg = """
-        Job ID: {} 
+        Job ID: {}
         Created: {}
         Completed: {}
         Current status: {}

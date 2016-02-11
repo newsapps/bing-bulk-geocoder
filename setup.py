@@ -27,6 +27,7 @@ setup(
         'requests',
         'click',
         'pytz',
+        'six',
     ],
     tests_require=[
         'nose',
